@@ -1,0 +1,7 @@
+INFO Server started
+INFO User login success
+ERROR Database connection failed
+INFO Backup completed
+WARNING Disk almost full
+ERROR Timeout while processing request
+INFO Server stopped

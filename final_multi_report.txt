@@ -1,0 +1,6 @@
+
+Log Rapport - 2026-03-28 17:00:11.655701
+
+Errors: 4
+Warnings: 2
+Info: 7
