@@ -87,3 +87,18 @@ This portfolio demonstrates my ability to:
 - Build practical automation tools
 - Solve real-world problems
 - Continuously learn and improve in DevOps and Cloud technologies
+
+# Excel Automation Tool
+
+This tool automatically cleans and merges multiple Excel files.
+
+## How to use
+
+1. Place Excel files in the input folder
+2. Run:
+   python3 script.py
+3. Get result in the output folder
+
+## Value
+
+Saves time by automating repetitive Excel tasks.
