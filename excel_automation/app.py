@@ -4,7 +4,7 @@ import pandas as pd
 st.set_page_config(page_title="Excel Automation Tool", layout="wide")
 
 st.title("🚀 Excel Automation Tool")
-st.write("Upload Excel bestanden en krijg direct een clean rapport")
+st.write("Upload Excel bestanden en krijg een clean samengevoegd rapport")
 
 uploaded_files = st.file_uploader(
     "Upload Excel bestanden",
@@ -22,6 +22,7 @@ if uploaded_files:
             try:
                 data = pd.read_excel(file, header=None)
 
+                # verwijder lege rijen/kolommen
                 data = data.dropna(axis=1, how="all")
                 data = data.dropna(how="all")
 
@@ -37,15 +38,16 @@ if uploaded_files:
                     st.warning(f"Geen header gevonden in {file.name}")
                     continue
 
+                # header instellen
                 data.columns = data.iloc[header_row]
                 data = data[header_row + 1:]
 
-                # 🔥 FIX: ALLES NAAR STRING
+                # kolomnamen clean
                 data.columns = data.columns.map(lambda x: str(x).strip().lower())
 
                 cols = list(data.columns)
 
-                # 🔥 FIX: veilige check (geen float errors meer)
+                # kolommen zoeken (zonder data te veranderen)
                 naam_col = next((c for c in cols if "naam" in str(c) or "name" in str(c)), None)
                 uren_col = next((c for c in cols if "uur" in str(c) or "hour" in str(c)), None)
                 bedrag_col = next((c for c in cols if "bedrag" in str(c) or "salaris" in str(c) or "amount" in str(c)), None)
@@ -54,27 +56,26 @@ if uploaded_files:
                     st.warning(f"Kolommen niet herkend in {file.name}")
                     continue
 
-                data = data.rename(columns={
+                # rename zonder data te veranderen
+                rename_dict = {
                     naam_col: "naam",
                     bedrag_col: "bedrag"
-                })
+                }
 
-                # uren fix
                 if uren_col:
-                    data = data.rename(columns={uren_col: "uren"})
-                else:
-                    mogelijke_uren = data.select_dtypes(include=["number"]).columns.tolist()
-                    if mogelijke_uren:
-                        data = data.rename(columns={mogelijke_uren[0]: "uren"})
-                    else:
-                        data["uren"] = 0
+                    rename_dict[uren_col] = "uren"
 
-                data = data[["naam", "uren", "bedrag"]]
+                data = data.rename(columns=rename_dict)
 
-                data["uren"] = pd.to_numeric(data["uren"], errors="coerce")
-                data["bedrag"] = pd.to_numeric(data["bedrag"], errors="coerce")
+                # alleen bestaande kolommen selecteren
+                final_cols = ["naam", "bedrag"]
+                if "uren" in data.columns:
+                    final_cols.insert(1, "uren")
 
-                data = data.dropna()
+                data = data[final_cols]
+
+                # alleen lege rijen weg
+                data = data.dropna(subset=["naam", "bedrag"])
 
                 df_list.append(data)
 
