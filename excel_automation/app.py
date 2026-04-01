@@ -20,14 +20,12 @@ if uploaded_files:
 
         for file in uploaded_files:
             try:
-                # lees bestand
                 data = pd.read_excel(file, header=None)
 
-                # verwijder lege rijen/kolommen
                 data = data.dropna(axis=1, how="all")
                 data = data.dropna(how="all")
 
-                # zoek header rij (waar 'naam' voorkomt)
+                # header zoeken
                 header_row = None
                 for i, row in data.iterrows():
                     row_str = row.astype(str).str.lower()
@@ -39,43 +37,44 @@ if uploaded_files:
                     st.warning(f"Geen header gevonden in {file.name}")
                     continue
 
-                # zet header
                 data.columns = data.iloc[header_row]
                 data = data[header_row + 1:]
 
-                # clean kolomnamen
                 data.columns = data.columns.astype(str).str.strip().str.lower()
 
-                # FLEXIBELE kolom detectie
                 cols = list(data.columns)
 
-                naam_col = next((c for c in cols if "naam" in c), None)
-                uren_col = next((c for c in cols if "uur" in c), None)
+                # betere detectie
+                naam_col = next((c for c in cols if "naam" in c or "name" in c), None)
+                uren_col = next((c for c in cols if "uur" in c or "hour" in c), None)
                 bedrag_col = next((c for c in cols if "bedrag" in c or "salaris" in c or "amount" in c), None)
 
                 if not naam_col or not bedrag_col:
                     st.warning(f"Kolommen niet herkend in {file.name}")
                     continue
 
-                # hernoem kolommen
                 data = data.rename(columns={
                     naam_col: "naam",
                     bedrag_col: "bedrag"
                 })
 
+                # 🔥 FIX: uren fallback slimmer
                 if uren_col:
                     data = data.rename(columns={uren_col: "uren"})
                 else:
-                    data["uren"] = 0
+                    # probeer automatisch kolom te vinden met kleine getallen
+                    mogelijke_uren = data.select_dtypes(include=["number"]).columns.tolist()
 
-                # selecteer kolommen
+                    if len(mogelijke_uren) > 0:
+                        data = data.rename(columns={mogelijke_uren[0]: "uren"})
+                    else:
+                        data["uren"] = 0
+
                 data = data[["naam", "uren", "bedrag"]]
 
-                # convert types
                 data["uren"] = pd.to_numeric(data["uren"], errors="coerce")
                 data["bedrag"] = pd.to_numeric(data["bedrag"], errors="coerce")
 
-                # drop lege rijen
                 data = data.dropna()
 
                 df_list.append(data)
