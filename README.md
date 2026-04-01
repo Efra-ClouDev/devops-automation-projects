@@ -26,7 +26,7 @@ This tool automates that process and saves time.
 #### ⚙️ Tech:
 - Python
 - Pandas
-- Openpyxl
+  
 ---
 
 ### 2. Log Analyzer
