@@ -4,7 +4,7 @@ import pandas as pd
 st.set_page_config(page_title="Excel Automation Tool", layout="wide")
 
 st.title("🚀 Excel Automation Tool")
-st.write("Upload Excel bestanden en krijg een clean samengevoegd rapport")
+st.write("Upload Excel bestanden → opschonen + samenvoegen zonder dataverlies")
 
 uploaded_files = st.file_uploader(
     "Upload Excel bestanden",
@@ -22,15 +22,14 @@ if uploaded_files:
             try:
                 data = pd.read_excel(file, header=None)
 
-                # verwijder lege rijen/kolommen
+                # lege rijen/kolommen verwijderen
                 data = data.dropna(axis=1, how="all")
                 data = data.dropna(how="all")
 
-                # header zoeken
+                # header zoeken (eerste rij met tekst)
                 header_row = None
                 for i, row in data.iterrows():
-                    row_str = row.astype(str).str.lower()
-                    if row_str.str.contains("naam").any():
+                    if row.astype(str).str.contains("[a-zA-Z]").any():
                         header_row = i
                         break
 
@@ -42,40 +41,18 @@ if uploaded_files:
                 data.columns = data.iloc[header_row]
                 data = data[header_row + 1:]
 
-                # kolomnamen clean
-                data.columns = data.columns.map(lambda x: str(x).strip().lower())
+                # kolomnamen opschonen
+                data.columns = (
+                    data.columns
+                    .map(lambda x: str(x).strip().lower())
+                    .str.replace(" ", "_")
+                )
 
-                cols = list(data.columns)
+                # alleen lege rijen verwijderen
+                data = data.dropna(how="all")
 
-                # kolommen zoeken (zonder data te veranderen)
-                naam_col = next((c for c in cols if "naam" in str(c) or "name" in str(c)), None)
-                uren_col = next((c for c in cols if "uur" in str(c) or "hour" in str(c)), None)
-                bedrag_col = next((c for c in cols if "bedrag" in str(c) or "salaris" in str(c) or "amount" in str(c)), None)
-
-                if not naam_col or not bedrag_col:
-                    st.warning(f"Kolommen niet herkend in {file.name}")
-                    continue
-
-                # rename zonder data te veranderen
-                rename_dict = {
-                    naam_col: "naam",
-                    bedrag_col: "bedrag"
-                }
-
-                if uren_col:
-                    rename_dict[uren_col] = "uren"
-
-                data = data.rename(columns=rename_dict)
-
-                # alleen bestaande kolommen selecteren
-                final_cols = ["naam", "bedrag"]
-                if "uren" in data.columns:
-                    final_cols.insert(1, "uren")
-
-                data = data[final_cols]
-
-                # alleen lege rijen weg
-                data = data.dropna(subset=["naam", "bedrag"])
+                # voeg bronbestand toe
+                data["bronbestand"] = file.name
 
                 df_list.append(data)
 
@@ -84,9 +61,10 @@ if uploaded_files:
                 st.write(e)
 
         if df_list:
-            combined_df = pd.concat(df_list, ignore_index=True)
+            # 🔥 BELANGRIJK: kolommen samenvoegen (union)
+            combined_df = pd.concat(df_list, ignore_index=True, sort=False)
 
-            st.success("Klaar!")
+            st.success("Klaar! Alle kolommen behouden ✅")
             st.dataframe(combined_df, use_container_width=True)
 
             st.download_button(
