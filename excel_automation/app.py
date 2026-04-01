@@ -40,14 +40,15 @@ if uploaded_files:
                 data.columns = data.iloc[header_row]
                 data = data[header_row + 1:]
 
-                data.columns = data.columns.astype(str).str.strip().str.lower()
+                # 🔥 FIX: ALLES NAAR STRING
+                data.columns = data.columns.map(lambda x: str(x).strip().lower())
 
                 cols = list(data.columns)
 
-                # betere detectie
-                naam_col = next((c for c in cols if "naam" in c or "name" in c), None)
-                uren_col = next((c for c in cols if "uur" in c or "hour" in c), None)
-                bedrag_col = next((c for c in cols if "bedrag" in c or "salaris" in c or "amount" in c), None)
+                # 🔥 FIX: veilige check (geen float errors meer)
+                naam_col = next((c for c in cols if "naam" in str(c) or "name" in str(c)), None)
+                uren_col = next((c for c in cols if "uur" in str(c) or "hour" in str(c)), None)
+                bedrag_col = next((c for c in cols if "bedrag" in str(c) or "salaris" in str(c) or "amount" in str(c)), None)
 
                 if not naam_col or not bedrag_col:
                     st.warning(f"Kolommen niet herkend in {file.name}")
@@ -58,14 +59,12 @@ if uploaded_files:
                     bedrag_col: "bedrag"
                 })
 
-                # 🔥 FIX: uren fallback slimmer
+                # uren fix
                 if uren_col:
                     data = data.rename(columns={uren_col: "uren"})
                 else:
-                    # probeer automatisch kolom te vinden met kleine getallen
                     mogelijke_uren = data.select_dtypes(include=["number"]).columns.tolist()
-
-                    if len(mogelijke_uren) > 0:
+                    if mogelijke_uren:
                         data = data.rename(columns={mogelijke_uren[0]: "uren"})
                     else:
                         data["uren"] = 0
