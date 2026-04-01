@@ -1,30 +1,16 @@
 import streamlit as st
 import pandas as pd
 
+st.set_page_config(page_title="Excel Automation Tool", layout="wide")
+
 st.title("🚀 Excel Automation Tool")
-st.markdown("Upload Excel bestanden en krijg direct een clean rapport")
+st.write("Upload Excel bestanden en krijg direct een clean rapport")
 
 uploaded_files = st.file_uploader(
     "Upload Excel bestanden",
     accept_multiple_files=True,
     type=["xlsx"]
 )
-
-def normalize_columns(columns):
-    return [str(col).strip().lower() for col in columns]
-
-def map_columns(columns):
-    mapping = {}
-    
-    for col in columns:
-        if any(x in col for x in ["naam", "name", "employee", "persoon"]):
-            mapping[col] = "naam"
-        elif any(x in col for x in ["bedrag", "amount", "salary", "total"]):
-            mapping[col] = "bedrag"
-        elif any(x in col for x in ["uren", "hours", "time"]):
-            mapping[col] = "uren"
-    
-    return mapping
 
 if uploaded_files:
 
@@ -34,38 +20,75 @@ if uploaded_files:
 
         for file in uploaded_files:
             try:
-                data = pd.read_excel(file)
+                # lees bestand
+                data = pd.read_excel(file, header=None)
 
-                data.columns = normalize_columns(data.columns)
-                mapping = map_columns(data.columns)
+                # verwijder lege rijen/kolommen
+                data = data.dropna(axis=1, how="all")
+                data = data.dropna(how="all")
 
-                data = data.rename(columns=mapping)
+                # zoek header rij (waar 'naam' voorkomt)
+                header_row = None
+                for i, row in data.iterrows():
+                    row_str = row.astype(str).str.lower()
+                    if row_str.str.contains("naam").any():
+                        header_row = i
+                        break
 
-                if "naam" not in data.columns or "bedrag" not in data.columns:
-                    st.warning(f"⚠️ Kolommen niet herkend in {file.name}")
+                if header_row is None:
+                    st.warning(f"Geen header gevonden in {file.name}")
                     continue
 
-                if "uren" not in data.columns:
+                # zet header
+                data.columns = data.iloc[header_row]
+                data = data[header_row + 1:]
+
+                # clean kolomnamen
+                data.columns = data.columns.astype(str).str.strip().str.lower()
+
+                # FLEXIBELE kolom detectie
+                cols = list(data.columns)
+
+                naam_col = next((c for c in cols if "naam" in c), None)
+                uren_col = next((c for c in cols if "uur" in c), None)
+                bedrag_col = next((c for c in cols if "bedrag" in c or "salaris" in c or "amount" in c), None)
+
+                if not naam_col or not bedrag_col:
+                    st.warning(f"Kolommen niet herkend in {file.name}")
+                    continue
+
+                # hernoem kolommen
+                data = data.rename(columns={
+                    naam_col: "naam",
+                    bedrag_col: "bedrag"
+                })
+
+                if uren_col:
+                    data = data.rename(columns={uren_col: "uren"})
+                else:
                     data["uren"] = 0
 
+                # selecteer kolommen
                 data = data[["naam", "uren", "bedrag"]]
 
+                # convert types
                 data["uren"] = pd.to_numeric(data["uren"], errors="coerce")
                 data["bedrag"] = pd.to_numeric(data["bedrag"], errors="coerce")
 
+                # drop lege rijen
                 data = data.dropna()
 
                 df_list.append(data)
 
             except Exception as e:
-                st.error(f"❌ Fout bij bestand: {file.name}")
+                st.error(f"Fout bij bestand: {file.name}")
                 st.write(e)
 
         if df_list:
             combined_df = pd.concat(df_list, ignore_index=True)
 
-            st.success("✅ Klaar!")
-            st.dataframe(combined_df)
+            st.success("Klaar!")
+            st.dataframe(combined_df, use_container_width=True)
 
             st.download_button(
                 "Download resultaat",
@@ -73,4 +96,4 @@ if uploaded_files:
                 "result.csv"
             )
         else:
-            st.error("❌ Geen geldige bestanden gevonden")
+            st.error("Geen geldige bestanden gevonden")
